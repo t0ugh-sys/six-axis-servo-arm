@@ -10,7 +10,7 @@ out/
 Thumbs.db
 Desktop.ini
 
-# STM32CubeIDE / Keil / IAR 等（按需再补）
+# STM32CubeIDE / Keil / IAR（按需再补）
 *.launch
 *.uvoptx
 *.uvprojx

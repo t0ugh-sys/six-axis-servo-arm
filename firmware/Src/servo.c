@@ -23,23 +23,32 @@ void servo_init(Servo* s,
   s->us_max = us_max;
 }
 
-HAL_StatusTypeDef servo_write_us(Pca9685* dev, const Servo* s, uint16_t pulse_us) {
-  (void)s;
-  return pca9685_set_pulse_us(dev, s->channel, pulse_us);
-}
-
-HAL_StatusTypeDef servo_write_angle(Pca9685* dev, const Servo* s, float angle_deg) {
-  float a = angle_deg + s->offset_deg;
-  a = clampf(a, s->angle_min_deg, s->angle_max_deg);
+bool servo_calc_pulse_us(const Servo* s, float angle_deg, uint16_t* out_pulse_us) {
+  if (out_pulse_us == NULL) return false;
 
   const float span_deg = (s->angle_max_deg - s->angle_min_deg);
-  if (span_deg <= 0.01f) return HAL_ERROR;
+  if (span_deg <= 0.01f) return false;
+
+  float a = angle_deg + s->offset_deg;
+  a = clampf(a, s->angle_min_deg, s->angle_max_deg);
 
   float t = (a - s->angle_min_deg) / span_deg;  // 0..1
   if (s->inverted) t = 1.0f - t;
 
   const float us = (float)s->us_min + t * (float)((int32_t)s->us_max - (int32_t)s->us_min);
   uint16_t pulse = (uint16_t)clampf(us, 0.0f, 65535.0f);
-  return pca9685_set_pulse_us(dev, s->channel, pulse);
+  *out_pulse_us = pulse;
+  return true;
+}
+
+HAL_StatusTypeDef servo_write_us(Pca9685* dev, const Servo* s, uint16_t pulse_us) {
+  (void)s;
+  return pca9685_set_pulse_us(dev, s->channel, pulse_us);
+}
+
+HAL_StatusTypeDef servo_write_angle(Pca9685* dev, const Servo* s, float angle_deg) {
+  uint16_t pulse_us = 0;
+  if (!servo_calc_pulse_us(s, angle_deg, &pulse_us)) return HAL_ERROR;
+  return pca9685_set_pulse_us(dev, s->channel, pulse_us);
 }
 

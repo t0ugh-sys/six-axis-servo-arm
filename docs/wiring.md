@@ -1,42 +1,28 @@
-# 接线（STM32F411 + PCA9685 + 6 舵机）
+# 接线（BlackPill F411 + PCA9685 + 舵机）
 
-## I2C（STM32 ↔ PCA9685）
+## I2C（BlackPill ↔ PCA9685）
 
-PCA9685 默认 I2C 地址通常是 `0x40`（取决于 A0~A5 焊盘/跳线）。
-
-- STM32 3.3V → PCA9685 `VCC`
-- STM32 GND → PCA9685 `GND`
-- STM32 I2C_SCL → PCA9685 `SCL`
-- STM32 I2C_SDA → PCA9685 `SDA`
-
-### BlackPill（STM32F411CE）常用引脚建议
-
-优先推荐 I2C1：
-- `PB8 = I2C1_SCL`（板子丝印一般写 `B8`）
-- `PB9 = I2C1_SDA`（板子丝印一般写 `B9`）
-
-备选（同为 I2C1 的另一组复用脚）：
-- `PB6 = I2C1_SCL`（丝印 `B6`）
-- `PB7 = I2C1_SDA`（丝印 `B7`）
+推荐使用 I2C1：
+- BlackPill `B8(PB8)` → PCA9685 `SCL`
+- BlackPill `B9(PB9)` → PCA9685 `SDA`
+- BlackPill `GND` → PCA9685 `GND`
+- BlackPill `3.3V` → PCA9685 `VCC`（逻辑电源）
 
 说明：
-- PCA9685 模块一般自带 I2C 上拉电阻到 `VCC`；用 3.3V 逻辑通常没问题。
-- 线尽量短，I2C 走线远的话建议降低 I2C 速率（例如 100kHz）。
+- 板子口标注 `A0~A15 / B0~B9` 是“简化丝印”，本质仍然是 `PAx/PBx`。
+- PCA9685 的 SDA/SCL 通常已经带上拉（取决于你买的板子），先不用额外加上拉电阻。
 
-## 舵机供电（强制独立供电）
+## 输出使能 OE
 
-- 6.0V（推荐）电源正极 → PCA9685 `V+`
-- 6.0V 电源负极 → PCA9685 `GND`
-- STM32 GND ↔ PCA9685 GND（共地）
+- `OE` 建议直接接 `GND`（使能输出）
+- 不要接 5V（`OE` 高会禁用输出）
 
-建议：
-- 在 PCA9685 `V+` 与 `GND` 端子附近并联 `1000uF~2200uF` 电解电容（耐压 >= 10V）。
+## 舵机电源（关键）
 
-## 舵机插法（每路 3 针）
+- 舵机电源 `5~6V` → PCA9685 `V+`
+- 舵机电源 `GND` → PCA9685 `GND`
+- 舵机三线：`GND / V+ / Signal` 分别接 PCA9685 对应三排针脚
 
-PCA9685 每个通道一般是三针排：
-- `GND`（棕/黑）
-- `V+`（红）
-- `PWM`（橙/黄/白，信号线）
+强制要求：
+- 舵机电源 GND、PCA9685 GND、BlackPill GND 必须共地
 
-不同舵机线色可能不同，以舵机说明为准。

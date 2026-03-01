@@ -1,34 +1,39 @@
-# CubeMX 配置建议（STM32F411）
+# CubeMX / STM32CubeIDE 配置要点（STM32F411 BlackPill）
 
-你只需要把本目录的 `firmware/Inc` 和 `firmware/Src` 拷进 CubeMX 生成的工程，然后做以下外设配置即可。
+## 1) I2C1 选哪种模式？
 
-## I2C
+在 CubeMX 的 Connectivity 里开 I2C1 时：
+- 选择 `I2C`（标准 I2C）
+- 不要选 `SMBus-aert-mode` / `SMBus-two-wire-interface`
 
-- 开启一个 I2C（I2C1/I2C2 都行）
-- 速率建议先用 100kHz（距离短也可 400kHz）
-- 确保 SDA/SCL 配置为 AF 开漏（Open Drain）+ 上拉（板上通常已有）
+原因：PCA9685 是标准 I2C 设备，不需要 SMBus 的额外协议特性。
 
-### BlackPill（STM32F411CE）推荐配置
+## 2) 在哪里选引脚？
 
-- 推荐用 `I2C1`：
-  - `PB8 = I2C1_SCL`（板子丝印一般写 `B8`）
-  - `PB9 = I2C1_SDA`（板子丝印一般写 `B9`）
-- 备选用 `PB6/PB7` 作为 I2C1（看你板子引脚占用情况）
+常用两种方式（都可以）：
+- 在 Pinout 视图直接点引脚，把 `PB8` 设为 `I2C1_SCL`、`PB9` 设为 `I2C1_SDA`
+- 或者在左侧 I2C1 的 Parameter/Pin 里选择对应引脚（如果界面提供）
 
-## UART（可选）
+`GPIO Settings` 主要是看/改 GPIO 的模式、上下拉、速度等细节，不是“选外设引脚”的唯一入口。
 
-如果你要用串口命令控制：
-- 开一个 UART（例如 USART1/USART2）
-- 115200 8N1
-- 建议用中断接收或 DMA（先简单也可轮询）
+## 3) 为什么板子丝印是 B8/B9？
 
-### BlackPill 常见 UART 引脚（任选其一）
+BlackPill 的丝印通常用简写：
+- `B8` 代表 `PB8`
+- `B9` 代表 `PB9`
 
-- `USART1`：`PA9=TX`，`PA10=RX`
-- `USART2`：`PA2=TX`，`PA3=RX`
+同理：
+- `A2` 代表 `PA2`
+- `A3` 代表 `PA3`
 
-## SysTick / 定时调用
+## 4) （可选）开串口是什么意思？
 
-机械臂的插补更新建议 20ms 一次（与 50Hz 舵机刷新一致）：
-- 你可以用 `HAL_GetTick()` 在主循环里做 20ms 任务
-- 或开一个 TIM 周期中断 20ms 调 `arm_update(...)`
+“开串口”一般指启用一个 UART，用来：
+- 打印日志（比如 I2C 初始化是否成功）
+- 后期做简单命令控制（比如输入角度/脉宽）
+
+BlackPill 常用：
+- `USART2`：`PA2=TX`、`PA3=RX`，115200 8N1
+
+注意：你用 ST-Link 也能调试，但串口对排错非常有用（可选，不强制）。
+

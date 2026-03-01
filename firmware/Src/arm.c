@@ -3,7 +3,7 @@
 #include <string.h>
 
 static void arm_load_default_servos(Arm* arm) {
-  // 这里给一组“保守默认值”，你标定后应该把 offset / inverted / us_min/us_max / 角度限位改掉
+  // 这里给一组“保守默认值”，标定后你应该把 offset / inverted / us_min/us_max / 角度限位改成你的实际值。
   // angle_min/max 建议先从 10~170 这种保守范围起步，避免顶死。
   servo_init(&arm->joints[0], 0, false, 10.0f, 170.0f, 0.0f, ARM_DEFAULT_US_MIN, ARM_DEFAULT_US_MAX);
   servo_init(&arm->joints[1], 1, false, 10.0f, 170.0f, 0.0f, ARM_DEFAULT_US_MIN, ARM_DEFAULT_US_MAX);
@@ -20,16 +20,22 @@ HAL_StatusTypeDef arm_init(Arm* arm, I2C_HandleTypeDef* hi2c) {
   for (uint32_t i = 0; i < ARM_JOINT_COUNT; i++) {
     arm->current_deg[i] = 90.0f;
     arm->target_deg[i] = 90.0f;
+    arm->last_pulse_us[i] = 1500;
   }
 
   HAL_StatusTypeDef st = pca9685_init(&arm->pca, hi2c, ARM_PCA9685_ADDR, ARM_SERVO_FREQ_HZ);
   if (st != HAL_OK) return st;
+
   return arm_write_now(arm);
 }
 
 HAL_StatusTypeDef arm_write_now(Arm* arm) {
   for (uint32_t i = 0; i < ARM_JOINT_COUNT; i++) {
-    HAL_StatusTypeDef st = servo_write_angle(&arm->pca, &arm->joints[i], arm->current_deg[i]);
+    uint16_t pulse_us = 0;
+    if (!servo_calc_pulse_us(&arm->joints[i], arm->current_deg[i], &pulse_us)) return HAL_ERROR;
+    arm->last_pulse_us[i] = pulse_us;
+
+    HAL_StatusTypeDef st = servo_write_us(&arm->pca, &arm->joints[i], pulse_us);
     if (st != HAL_OK) return st;
   }
   return HAL_OK;
@@ -60,7 +66,7 @@ void arm_set_target(Arm* arm, const float deg[ARM_JOINT_COUNT], uint32_t duratio
 
 HAL_StatusTypeDef arm_update(Arm* arm) {
   if (arm->move_total_steps == 0) {
-    // no interpolation; still allow periodic refresh if你想
+    // 不做插补时也刷新输出，方便你在调试器里改 current_deg 后生效
     return arm_write_now(arm);
   }
 

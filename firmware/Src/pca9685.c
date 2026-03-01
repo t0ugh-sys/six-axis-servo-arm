@@ -1,10 +1,15 @@
 #include "pca9685.h"
 
+#include <math.h>
+
 #define PCA9685_MODE1 0x00
 #define PCA9685_MODE2 0x01
 #define PCA9685_PRESCALE 0xFE
-#define PCA9685_LED0_ON_L 0x06
 
+#define PCA9685_LED0_ON_L 0x06
+#define PCA9685_ALL_LED_ON_L 0xFA
+
+#define PCA9685_MODE1_RESTART (1u << 7)
 #define PCA9685_MODE1_SLEEP (1u << 4)
 #define PCA9685_MODE1_AI (1u << 5)  // auto-increment
 
@@ -27,7 +32,7 @@ HAL_StatusTypeDef pca9685_set_pwm_freq(Pca9685* dev, float pwm_freq_hz) {
   if (pwm_freq_hz > 1526.0f) pwm_freq_hz = 1526.0f;
 
   const float prescale_f = (25000000.0f / (4096.0f * pwm_freq_hz)) - 1.0f;
-  uint8_t prescale = (uint8_t)(prescale_f + 0.5f);
+  uint8_t prescale = (uint8_t)lroundf(prescale_f);
 
   uint8_t old_mode1 = 0;
   HAL_StatusTypeDef st = pca9685_read_u8(dev, PCA9685_MODE1, &old_mode1);
@@ -45,6 +50,11 @@ HAL_StatusTypeDef pca9685_set_pwm_freq(Pca9685* dev, float pwm_freq_hz) {
   if (st != HAL_OK) return st;
 
   HAL_Delay(1);
+
+  // RESTART：确保 PWM 逻辑重新开始（很多库都会做这一步）
+  st = pca9685_write_u8(dev, PCA9685_MODE1, (uint8_t)(PCA9685_MODE1_RESTART | PCA9685_MODE1_AI));
+  if (st != HAL_OK) return st;
+
   dev->pwm_freq_hz = pwm_freq_hz;
   return HAL_OK;
 }
@@ -62,6 +72,10 @@ HAL_StatusTypeDef pca9685_init(Pca9685* dev, I2C_HandleTypeDef* hi2c, uint8_t ad
   st = pca9685_write_u8(dev, PCA9685_MODE1, PCA9685_MODE1_AI);
   if (st != HAL_OK) return st;
 
+  // 先把所有输出置 0，避免上电毛刺导致舵机突然抽一下
+  st = pca9685_set_all_pwm(dev, 0, 0);
+  if (st != HAL_OK) return st;
+
   HAL_Delay(1);
   return pca9685_set_pwm_freq(dev, pwm_freq_hz);
 }
@@ -77,12 +91,23 @@ HAL_StatusTypeDef pca9685_set_pwm(Pca9685* dev, uint8_t channel, uint16_t on_tic
   return HAL_I2C_Master_Transmit(dev->hi2c, (uint16_t)(dev->addr_7bit << 1), buf, sizeof(buf), 100);
 }
 
+HAL_StatusTypeDef pca9685_set_all_pwm(Pca9685* dev, uint16_t on_tick, uint16_t off_tick) {
+  on_tick &= 0x0FFF;
+  off_tick &= 0x0FFF;
+
+  uint8_t reg = PCA9685_ALL_LED_ON_L;
+  uint8_t buf[5] = {reg, (uint8_t)(on_tick & 0xFF), (uint8_t)(on_tick >> 8), (uint8_t)(off_tick & 0xFF),
+                    (uint8_t)(off_tick >> 8)};
+  return HAL_I2C_Master_Transmit(dev->hi2c, (uint16_t)(dev->addr_7bit << 1), buf, sizeof(buf), 100);
+}
+
 HAL_StatusTypeDef pca9685_set_pulse_us(Pca9685* dev, uint8_t channel, uint16_t pulse_us) {
   // tick_us = 1e6 / (freq * 4096)
   // off = pulse_us / tick_us = pulse_us * freq * 4096 / 1e6
   if (dev->pwm_freq_hz <= 0.1f) return HAL_ERROR;
 
-  uint32_t off = (uint32_t)(((uint64_t)pulse_us * (uint64_t)(dev->pwm_freq_hz * 4096.0f)) / 1000000ull);
+  const double off_f = ((double)pulse_us * (double)dev->pwm_freq_hz * 4096.0) / 1000000.0;
+  uint32_t off = (uint32_t)lround(off_f);
   if (off > 4095u) off = 4095u;
   return pca9685_set_pwm(dev, channel, 0u, (uint16_t)off);
 }

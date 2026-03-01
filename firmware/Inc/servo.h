@@ -24,7 +24,11 @@ void servo_init(Servo* s,
                 uint16_t us_min,
                 uint16_t us_max);
 
-// 将“目标角度（deg）”映射为脉宽（us），并写入 PCA9685
+// 把角度映射到脉宽（us），并做 offset / 方向 / 限位处理。
+// 返回 false 表示参数不合法（例如 angle_min >= angle_max）。
+bool servo_calc_pulse_us(const Servo* s, float angle_deg, uint16_t* out_pulse_us);
+
+// 写入角度（deg）到 PCA9685（内部会调用 servo_calc_pulse_us）
 HAL_StatusTypeDef servo_write_angle(Pca9685* dev, const Servo* s, float angle_deg);
 
 // 标定用：直接写入脉宽（us）
