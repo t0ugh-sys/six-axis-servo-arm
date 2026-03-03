@@ -24,6 +24,7 @@
 
 - `docs/power.md`
 - `docs/wiring.md`
+- `docs/bom.md`
 
 2) CubeMX 新建工程并配置 I2C（可选 UART）
 
@@ -37,6 +38,7 @@
 
 - `docs/calibration.md`
 - `docs/debug_stlink.md`
+- 常见问题：`docs/troubleshooting.md`
 
 ## 重要提醒（强烈建议读）
 
@@ -45,4 +47,3 @@
 - PCA9685：`VCC` 接 3.3V（逻辑电源），`V+` 接 5~6V（舵机电源）。
 - `OE` 引脚高电平会禁止输出；建议接 GND（或接 MCU GPIO 控制），不要接 5V。
 - 建议在 PCA9685 的 `V+` 端附近并一个 1000uF~2200uF 电解电容（耐压 >= 10V）抑制电源压降导致的抽动/复位。
-
