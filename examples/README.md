@@ -23,6 +23,15 @@
     - 兼容 PuTTY 方向键/退格：过滤 ANSI ESC 序列、处理 DEL/Backspace
     - 尽量自愈 Reset 后偶发 `arm_init FAIL`：I2C 外设复位 + 总线恢复 + 重试
 
+- `cube_main_uart_u_trim.c`
+  - 入口：`app_main_uart_u_trim()`
+  - 用途：专门用于“微调 U(微秒脉宽) 找中位/装舵盘/测安全行程”
+  - 常用命令：
+    - `CH=0` 选择通道
+    - `U=1500` 设置脉宽
+    - `+` / `-` 按 `STEP` 微调
+    - `SAVE` 打印可复制的结果（例如 `U0=1490`）
+
 ## I2C 引脚说明（用于 BUS recovery）
 
 `cube_main_uart_arm_debug.c` 里默认假设 I2C1 是：
@@ -36,4 +45,3 @@
 - `APP_I2C1_SDA_PIN=GPIO_PIN_9`
 
 （也可以直接在 `cube_main_uart_arm_debug.c` 顶部改默认宏。）
-
