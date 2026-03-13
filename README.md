@@ -1,4 +1,4 @@
-# six-axis-servo-arm-stm32
+# six-axis-servo-arm
 
 STM32F411（BlackPill）+ PCA9685（I2C）+ 6 路舵机（MG996R ×3 + MG90S ×3）的六轴机械臂开源项目。
 
